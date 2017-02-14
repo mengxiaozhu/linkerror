@@ -32,12 +32,30 @@ func (e *Error) Error() (string) {
 	e.bufString = buf.String()
 	return e.bufString
 }
+func (e *Error) Extend(errType error, msg string) (*Error) {
+	return &Error{Type: errType, Msg: msg, prev: e }
+}
+func (e *Error) Catch(errs ... error) (bool) {
+	if e == nil {
+		return false
+	}
+	for _, err := range errs {
+		if e.Type == err {
+			return true
+		}
+	}
+	return false
+}
 
 var Type = errors.New
 
 func New(errType error, msg string) (*Error) {
 	return &Error{Type: errType, Msg: msg}
 }
-func NewWith(errType error, msg string, err *Error) (*Error) {
+func Extend(errType error, msg string, err *Error) (*Error) {
 	return &Error{Type: errType, Msg: msg, prev: err }
+}
+
+func NewWith(errType error, msg string, err error) (*Error) {
+	return &Error{Type: errType, Msg: msg, prev: &Error{Type: err} }
 }
