@@ -33,6 +33,9 @@ func (e *Error) Error() (string) {
 	return e.bufString
 }
 func (e *Error) Extend(errType error, msg string) (*Error) {
+	if e == nil {
+		return nil
+	}
 	return &Error{Type: errType, Msg: msg, prev: e }
 }
 func (e *Error) Catch(errs ... error) (bool) {
@@ -55,7 +58,16 @@ func New(errType error, msg string) (*Error) {
 func Extend(errType error, msg string, err *Error) (*Error) {
 	return &Error{Type: errType, Msg: msg, prev: err }
 }
+func NewIfNotNil(errType error, msg string, err error) (*Error) {
+	if err == nil {
+		return nil
+	}
+	return &Error{Type: errType, Msg: msg, prev: &Error{Type: err} }
 
+}
 func NewWith(errType error, msg string, err error) (*Error) {
+	if err == nil {
+		return &Error{Type: errType, Msg: msg}
+	}
 	return &Error{Type: errType, Msg: msg, prev: &Error{Type: err} }
 }

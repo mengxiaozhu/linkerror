@@ -10,6 +10,7 @@ import (
 )
 
 var JSONError = errors.Type("JSON Error")
+var CallAPIError = errors.Type("Call API  Error")
 var HTTPError = errors.Type("HTTP Error")
 
 func main() {
@@ -21,44 +22,50 @@ func main() {
 		} else if err.Catch(HTTPError) {
 			fmt.Println("捕获到HTTP异常")
 			fmt.Println(err)
-			return
+		} else if err.Catch(CallAPIError) {
+			fmt.Println("捕获到API调用时的异常")
+			fmt.Println(err)
 		} else {
 			fmt.Println("程序挂了")
-			return
 		}
+		return
 	}
 
-	fmt.Printf("%+v",resp)
+	fmt.Printf("%+v", resp)
 }
 
 //http://fanyi.youdao.com/openapi.do?keyfrom=<keyfrom>&key=<key>&type=data&doctype=<doctype>&version=1.1&q=要翻译的文本
 
 func webTranslate(word string) (*YoudaoAPIResp, *errors.Error) {
 
-	resp, err := http.Get("http://fanyi.youdao.com/openapi.do?" + url.Values{
+	jsonBytes, e := ApiGET(url.Values{
 		"keyfrom": {"mamashipu"},
 		"key":     {"1350041455"},
 		"type":    {"data"},
 		"doctype": {"json"},
 		"version": {"1.1"},
 		"q":       {word},
-	}.Encode())
+	})
+
+	if e != nil {
+		return nil, e.Extend(CallAPIError, "调用API出现异常")
+	}
+	youdaoAPIResp := &YoudaoAPIResp{}
+	err := json.Unmarshal(jsonBytes, youdaoAPIResp)
+	return youdaoAPIResp, errors.NewIfNotNil(JSONError, "解析有道翻译返回json时发生异常", err)
+}
+
+func ApiGET(values url.Values) ([]byte, *errors.Error) {
+	resp, err := http.Get("http://fanyi.youdao.com/openapi.do?" + values.Encode())
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	if err != nil {
 		return nil, errors.NewWith(HTTPError, "发送请求时出现异常", err)
 	}
-	jsonBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, errors.NewWith(HTTPError, "读取数据时发生异常", err)
-	}
-	youdaoAPIResp := &YoudaoAPIResp{}
-	err = json.Unmarshal(jsonBytes, youdaoAPIResp)
-	if err != nil {
-		return nil, errors.NewWith(JSONError, "解析有道翻译返回json时发生异常", err)
-	}
-	return youdaoAPIResp, nil
+	bytes, err := ioutil.ReadAll(resp.Body)
+
+	return bytes, errors.NewIfNotNil(HTTPError, "读取数据时发生异常", err)
 }
 
 type YoudaoAPIResp struct {
@@ -76,4 +83,3 @@ type YoudaoAPIResp struct {
 		Key   string `db:"key" json:"key"`
 	} `db:"web" json:"web"`
 }
-
